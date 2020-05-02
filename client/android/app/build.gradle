@@ -1,0 +1,110 @@
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+apply plugin: 'com.android.application'
+//apply plugin: 'kotlinx-serialization'
+apply plugin: 'kotlin-android'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+apply plugin: 'kotlin-android-extensions'
+//apply plugin: 'kotlin-multiplatform'// for multiplatform projects
+
+
+android {
+    compileSdkVersion 29
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+    }
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
+    }
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+
+    kotlinOptions{
+        jvmTarget = '1.8'
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId "com.alexrhino.flutter_app"
+        minSdkVersion 29
+        targetSdkVersion 29
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    applicationVariants.all { variant -> variant.getRuntimeConfiguration().exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        variant.getRuntimeConfiguration().exclude group: 'com.google.code.findbugs', module: 'annotations' }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    implementation "androidx.work:work-runtime-ktx:2.3.0-rc01"
+    implementation 'com.android.volley:volley:1.1.1'
+
+    implementation('io.minio:minio:6.0.11') {
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'net.jcip', module: 'jcip-annotations'
+        //https://github.com/minio/minio-java/issues/833
+        //https://stackoverflow.com/a/56639924
+    }
+    implementation 'com.google.guava:guava:28.2-android'
+    //implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    //implementation 'com.google.guava:listenablefuture:1.0'
+    //implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    //implementation "com.android.support:support-core-utils:28.0.0"
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    implementation "androidx.exifinterface:exifinterface:1.1.0"
+    implementation 'org.tensorflow:tensorflow-lite:2.1.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.0.0-nightly'
+    implementation "com.squareup.okhttp3:okhttp:4.3.1"
+    //implementation "com.squareup.moshi:moshi:1.9.2"
+    //implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version" // or "kotlin-stdlib-jdk8"
+    //implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0" // JVM dependency
+    //implementation 'com.google.code.gson:gson:2.8.6'
+    implementation "com.squareup.moshi:moshi-kotlin:1.9.2"
+
+}
+
