@@ -1,0 +1,210 @@
+---
+- hosts: devserver
+  vars:
+    cache_images_dir: "ToUpdate"
+    api_server_source_dir: "ToUpdate"
+  tasks:
+  - name: remove older version of docker
+    apt:
+      pkg:
+      - docker
+      - docker-engine
+      - docker.io
+      - containerd
+      - runc
+      state: absent
+    become: yes
+  - name: install prequisite pkg for docker installation
+    apt:
+      pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+      state: present
+      update_cache: yes
+    become: yes
+  - name: Add Docker’s official GPG key 
+    apt_key:
+      id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+  - debug: var=ansible_facts['distribution_release']
+  - apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable
+      state: present
+    become: yes
+  - name: install docker
+    apt:
+      pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      state: present
+      update_cache: yes
+    become: yes
+
+  - name: ensure cmake is installed, required by dlib
+    apt:
+      name: cmake
+      state: present
+    become: yes
+  - name: Create docker network dgraph
+    docker_network:
+      name: dgraph_default
+  - name: Create volume for dgraph zero
+    docker_volume:
+      name: dgraph_zero
+  - name:  ensure dgraph zero presnet
+    docker_container:
+      name: dgraph_zero
+      image: dgraph/dgraph:latest
+      volumes:
+        - dgraph_zero:/dgraph
+      networks:
+        - name: dgraph_default
+      ports:
+        - "5080:5080"
+        - "6080:6080"
+      command: dgraph zero --my={{ ansible_facts['default_ipv4']['address'] }}:5080
+  - name: Create volume for dgraph alpha
+    docker_volume:
+      name: dgraph_alpha
+  - name:  ensure dgraph alpha present
+    docker_container:
+      name: dgraph_alpha
+      image: dgraph/dgraph:latest
+      volumes:
+        - dgraph_alpha:/dgraph
+      networks:
+        - name: dgraph_default
+      ports:
+        - "7080:7080"
+        - "8080:8080"
+        - "9080:9080"
+      command: dgraph alpha --lru_mb=2049 --zero={{ ansible_facts['default_ipv4']['address'] }}:5080 --my={{ ansible_facts['default_ipv4']['address'] }}:7080 
+  - name:  ensure dgraph ratel present
+    docker_container:
+      name: dgraph_ratel
+      image: dgraph/dgraph:latest
+      networks:
+        - name: dgraph_default
+      ports:
+        - "8000:8000"
+      command: dgraph-ratel
+  - name: Create volume for redis data
+    docker_volume:
+      name: redis_data
+  - name:  ensure redis server present
+    docker_container:
+      name: redis_server
+      image: redis
+      volumes:
+        - redis_data:/data
+      ports:
+        - "6379:6379"
+      command: redis-server --appendonly yes
+  - name: Create volume for minio data
+    docker_volume:
+      name: minio_data
+  - name:  ensure minio server present
+    docker_container:
+      name: minio_server
+      image: minio/minio
+      volumes:
+        - minio_data:/data
+      ports:
+        - "9000:9000"
+      env:
+        "MINIO_NOTIFY_REDIS_ENABLE": "on"
+        "MINIO_NOTIFY_REDIS_ADDRESS": "{{ ansible_facts['default_ipv4']['address'] }}:6379"
+        "MINIO_NOTIFY_REDIS_KEY": "bucketevents"
+        "MINIO_NOTIFY_REDIS_FORMAT": "access"
+        "MINIO_NOTIFY_REDIS_COMMENT": "Minio access notifincation"
+        "MINIO_PROMETHEUS_AUTH_TYPE": "public"
+      command: server /data
+  - name: Build icb image
+    docker_image:
+      name: icb:v0.0.1
+      build:
+        path: "{{ api_server_source_dir }}" 
+      source: build
+      force_source: yes
+  - name: Create volume for icb log
+    docker_volume:
+      name: ibc_log
+  - name:  ensure ibc server present
+    docker_container:
+      name: icb
+      image: icb:v0.0.1
+      volumes:
+        - icb_log:/log
+        - "{{ cache_images_dir}}":/images
+      ports:
+        - "5000:5000"
+      user: 1000
+      env:
+        FLASK_ENV: "development"
+        DGRAPH_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}"
+        MINIO_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}" 
+        REDIS_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}" 
+  - name:  ensure ibc1 server present
+    docker_container:
+      name: icb-1
+      image: icb:v0.0.1
+      volumes:
+        - icb_log:/log
+        - "{{ cache_images_dir}}":/images
+      ports:
+        - "5001:5000"
+      user: 1000
+      env:
+        FLASK_ENV: "development"
+        DGRAPH_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}"
+        MINIO_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}" 
+        REDIS_ADDR: "{{ ansible_facts['default_ipv4']['address'] }}" 
+  - name: Create volume for prometheus log
+    docker_volume:
+      name: prometheus_config
+  - name:  ensure prometheus server present
+    docker_container:
+      name: prometheus 
+      image: prom/prometheus 
+      volumes:
+        - prometheus_config:/etc/prometheus/
+      ports:
+        - "9090:9090"
+  - name:  ensure node-exporter server present
+    docker_container:
+      name: node-exporter 
+      image: quay.io/prometheus/node-exporter
+      network_mode: host
+      pid_mode: host
+      mounts:
+      - source: /
+        target: /host
+        type: bind
+        read_only: yes 
+      command: --path.rootfs=/host
+  - name:  ensure grafana server present
+    docker_container:
+      name: grafana 
+      image: grafana/grafana 
+      ports:
+        - "3000:3000"
+  - name: ensure libraries required for flutter present 
+    apt:
+      pkg:
+      - bash
+      - curl
+      - git
+      - unzip
+      - coreutils
+      - xz-utils
+      - zip
+    tags:
+    - flutter
+    - client
+    become: yes
+
