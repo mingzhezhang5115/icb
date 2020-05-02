@@ -26,7 +26,6 @@ import 'package:flutter_app/http_handlers.dart';
 import 'package:flutter_app/local_images_info.dart';
 import 'package:flutter_app/remote_sum_screen.dart';
 import 'package:flutter_app/middleware.dart';
-import 'package:flutter_app/settings.dart';
 import 'package:flutter_app/settings_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_redux/flutter_redux.dart';
