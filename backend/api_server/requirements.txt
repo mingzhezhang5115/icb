@@ -1,0 +1,6 @@
+celery==4.4.0
+Flask==1.1.1
+Flask-RESTful==0.3.7
+minio==5.0.6
+pydgraph==2.0.2
+redis==3.4.1
