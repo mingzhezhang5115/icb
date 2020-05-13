@@ -16,7 +16,10 @@ import tensorflow as tf
 
 
 #TODO change the devserver ip to your own host ip
-devserver_ip = ""
+devserver_ip = "127.0.0.1"
+cache_images_dir = ""
+tensorflow_model_path = ""
+tensorflow_labels_path = ""
 if not devserver_ip:
     print("Please update devserver_ip to your own ip")
     sys.exit(1)
@@ -112,10 +115,10 @@ def process_image(bucket, obj_key):
     obj_checksum = m.hexdigest()
     logger.info("%s", obj_checksum)
     img = Image.open(BytesIO(data))
-    img.save("images/" + obj_key + '.png', 'PNG')
+    img.save(cache_images_dir +  "/" + obj_key + '.png', 'PNG')
     #TODO update following variable to where your model and labels.text located
-    tflite_save_model = ''
-    labels_text_path = ''
+    tflite_save_model = tensorflow_model_path
+    labels_text_path = tensorflow_labels_path
 
     interpreter = tf.lite.Interpreter(model_path=tflite_save_model)
     interpreter.allocate_tensors()
@@ -186,8 +189,6 @@ def process_image(bucket, obj_key):
         add_image_tag_by_key(obj_key, "group_shot")
     else:
         logger.info("No face in %s detected", obj_key)
-    resized_image = img.resize((150, 150))
-    resized_image.save("resized_images/" + obj_key + '.jpg', format="JPEG")
     img.thumbnail(size)
     output = BytesIO()
     # with BytesIO() as output:

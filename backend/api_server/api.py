@@ -5,6 +5,7 @@ from datetime import timedelta
 import json
 import uuid
 import config
+import logging
 from flask import Flask, request, jsonify, g
 from flask_restful import Resource, Api
 import redis

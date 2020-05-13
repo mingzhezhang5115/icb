@@ -1,8 +1,8 @@
 ---
-- hosts: devserver
+- hosts: all
   vars:
-    cache_images_dir: "ToUpdate"
-    api_server_source_dir: "ToUpdate"
+    cache_images_dir: ""
+    api_server_source_dir: ""
   tasks:
   - name: remove older version of docker
     apt:
@@ -140,7 +140,7 @@
       image: icb:v0.0.1
       volumes:
         - icb_log:/log
-        - "{{ cache_images_dir}}":/images
+        - "{{ cache_images_dir }}:/images"
       ports:
         - "5000:5000"
       user: 1000
@@ -155,7 +155,7 @@
       image: icb:v0.0.1
       volumes:
         - icb_log:/log
-        - "{{ cache_images_dir}}":/images
+        - "{{ cache_images_dir }}:/images"
       ports:
         - "5001:5000"
       user: 1000
